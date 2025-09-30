@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  websearchmcp:
+    build: .
+    container_name: websearchmcp
+    ports:
+      - "8085:8000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_SEARCH_ENGINE_ID=${GOOGLE_SEARCH_ENGINE_ID}
+    restart: unless-stopped
