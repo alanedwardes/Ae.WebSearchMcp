@@ -147,6 +147,7 @@ cd Ae.WebSearchMcp
 **For Google Search:**
 ```bash
 # .env file
+PORT=8000  # Optional: custom host port (default: 8000)
 GOOGLE_API_KEY=your_google_api_key_here
 GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
 ```
@@ -154,12 +155,14 @@ GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
 **For Ollama Search:**
 ```bash
 # .env file
+PORT=8000  # Optional: custom host port (default: 8000)
 OLLAMA_API_KEY=your_ollama_api_key_here  # Optional for hosted service
 ```
 
 **For Multiple Search Engines:**
 ```bash
 # .env file
+PORT=8000  # Optional: custom host port (default: 8000)
 GOOGLE_API_KEY=your_google_api_key_here
 GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
 OLLAMA_API_KEY=your_ollama_api_key_here  # Optional for hosted service
@@ -171,7 +174,7 @@ OLLAMA_API_KEY=your_ollama_api_key_here  # Optional for hosted service
 docker-compose up -d
 ```
 
-The server will be available at `http://localhost:8085`
+The server will be available at `http://localhost:8000`
 
 ## Usage
 
@@ -222,15 +225,40 @@ Web Search Results for 'your query':
 | `GOOGLE_API_KEY` | Your Google Custom Search API key | Yes (if using Google) | - |
 | `GOOGLE_SEARCH_ENGINE_ID` | Your Google Custom Search Engine ID | Yes (if using Google) | - |
 | `OLLAMA_API_KEY` | Your Ollama API key (for hosted service) | No (if using Ollama) | - |
+| `PORT` | Host port for Docker container mapping | No | 8000 |
 
 **Note**: At least one search engine must be configured. The server automatically detects all configured engines and randomly selects one for each search request, providing load balancing and redundancy. If the selected engine fails or returns no results, another engine will be tried automatically. Additional search engines may be added in future releases with their own environment variables.
 
 ### Docker Configuration
 
 The Docker setup includes:
-- **Port**: 8085 (mapped to container port 8000)
+- **Port**: Configurable via `PORT` environment variable (default: 8000, mapped to container port 8000)
 - **Restart Policy**: unless-stopped
 - **Security**: Runs as non-root user
+
+#### Configurable Port
+
+You can customize the host port mapping using the `PORT` environment variable:
+
+**Default behavior** (no environment variable set):
+- Host port: 8000
+- Container port: 8000
+
+**Custom host port**:
+```bash
+# Set custom host port
+export PORT=9090
+docker-compose up -d
+```
+This maps host port 9090 to container port 8000.
+
+**Using .env file**:
+```bash
+# .env file
+PORT=9090
+GOOGLE_API_KEY=your_google_api_key_here
+GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
+```
 
 ## Development
 
