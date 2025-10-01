@@ -1,12 +1,13 @@
 # Web Search MCP Server
 
-A Model Context Protocol (MCP) HTTP server that provides web search functionality using multiple search engines. The server automatically detects all configured search engines and randomly selects one for each search request, providing load balancing and redundancy. This server can be integrated with OpenWebUI or other MCP-compatible clients to enable web search capabilities.
+A Model Context Protocol (MCP) HTTP server that provides web search functionality using multiple search engines. The server automatically detects all configured search engines and randomly selects one for each search request, with fallback support - if the selected engine fails or returns no results, another engine will be automatically tried. This server can be integrated with OpenWebUI or other MCP-compatible clients to enable web search capabilities.
 
 ## Features
 
 - **Multiple Search Providers**: Support for various search engines including Google Custom Search API and Ollama web search
 - **Automatic Engine Detection**: Automatically detects all configured search engines at startup
 - **Random Load Balancing**: Randomly selects from available engines for each search request
+- **Fallback Support**: If the selected engine fails or returns no results, another engine will be automatically tried
 - **Web Search Tool**: Search the web using any of the configured search providers
 - **MCP Protocol**: Compatible with Model Context Protocol for AI assistant integration
 - **HTTP Server**: Runs as an HTTP server using FastMCP
@@ -29,7 +30,7 @@ The server automatically detects all configured search engines and randomly sele
 - **Google Custom Search API**: Requires `GOOGLE_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID`
 - **Ollama Web Search API**: Requires `OLLAMA_API_KEY` (optional for local instances)
 
-**Note**: At least one search engine must be configured. If multiple engines are configured, the server will randomly select one for each search request, providing load balancing and redundancy. Additional search engines may be added in future releases.
+**Note**: At least one search engine must be configured. If multiple engines are configured, the server will randomly select one for each search request, providing load balancing and redundancy. If the selected engine fails or returns no results, another engine will be tried automatically. Additional search engines may be added in future releases.
 
 ### 2. Get Google API Credentials (if using Google search)
 
@@ -71,7 +72,7 @@ The server automatically detects all configured search engines and randomly sele
 
 ### 4. Environment Variables
 
-Set the environment variables for the search engines you want to use. The server will automatically detect all configured engines and randomly select one for each search request. Each search engine has its own specific environment variables.
+Set the environment variables for the search engines you want to use. The server will automatically detect all configured engines and randomly select one for each search request with fallback support. Each search engine has its own specific environment variables.
 
 **For Google Search (Windows PowerShell):**
 ```powershell
@@ -181,7 +182,7 @@ The server provides a single MCP tool called `web_search` with the following par
 - **query** (string, required): The search query to execute
 - **count** (integer, optional): Number of results to return (default: 10, max: 10)
 
-The server will automatically select a random search engine from all configured engines for each search request.
+The server will automatically randomly select a search engine for each request, with fallback support if the selected engine fails or returns no results.
 
 ### Example Usage
 
@@ -222,7 +223,7 @@ Web Search Results for 'your query':
 | `GOOGLE_SEARCH_ENGINE_ID` | Your Google Custom Search Engine ID | Yes (if using Google) | - |
 | `OLLAMA_API_KEY` | Your Ollama API key (for hosted service) | No (if using Ollama) | - |
 
-**Note**: At least one search engine must be configured. The server automatically detects all configured engines and randomly selects one for each search request. Additional search engines may be added in future releases with their own environment variables.
+**Note**: At least one search engine must be configured. The server automatically detects all configured engines and randomly selects one for each search request, providing load balancing and redundancy. If the selected engine fails or returns no results, another engine will be tried automatically. Additional search engines may be added in future releases with their own environment variables.
 
 ### Docker Configuration
 
@@ -272,5 +273,7 @@ The modular design allows for easy addition of new search engine providers by im
 The server logs important information including:
 - Startup confirmation and detected search engines
 - Random engine selection for each search request
+- Fallback attempts when engines fail or return no results
 - Search queries being executed
 - API errors and exceptions
+- Success/failure status for each engine attempt

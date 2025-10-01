@@ -208,12 +208,19 @@ def detect_available_engines() -> List[SearchEngineProvider]:
     return available_engines
 
 
-def get_random_search_provider() -> SearchEngineProvider:
-    """Get a randomly selected search provider from available engines."""
+def get_available_search_providers() -> List[SearchEngineProvider]:
+    """Get all available search providers."""
     available_engines = detect_available_engines()
     
     if not available_engines:
         raise Exception("No search engines configured. Please set up at least one of: GOOGLE_API_KEY+GOOGLE_SEARCH_ENGINE_ID or OLLAMA_API_KEY")
+    
+    return available_engines
+
+
+def get_random_search_provider() -> SearchEngineProvider:
+    """Get a randomly selected search provider from available engines."""
+    available_engines = get_available_search_providers()
     
     selected_engine = random.choice(available_engines)
     engine_name = "Google" if isinstance(selected_engine, GoogleSearchProvider) else "Ollama"
@@ -228,7 +235,8 @@ async def web_search(
     count: int = 10
 ) -> str:
     """
-    Search the web using a randomly selected search engine from available configured engines.
+    Search the web using a randomly selected search engine with fallback support.
+    If the selected engine fails or returns no results, another engine will be tried.
     
     Args:
         query: The search query to execute
@@ -237,29 +245,47 @@ async def web_search(
     Returns:
         Formatted search results as text
     """
-    try:
-        logger.info(f"Searching web for: {query}")
+    logger.info(f"Searching web for: {query}")
+    
+    # Get all available search providers
+    available_providers = get_available_search_providers()
+    
+    # Create a shuffled list to try engines in random order
+    providers_to_try = available_providers.copy()
+    random.shuffle(providers_to_try)
+    
+    # Try each provider until we get results or exhaust all options
+    for attempt, provider in enumerate(providers_to_try, 1):
+        engine_name = "Google" if isinstance(provider, GoogleSearchProvider) else "Ollama"
         
-        # Get a randomly selected search provider
-        provider = get_random_search_provider()
-        
-        # Perform the search
-        results = await provider.search(query, count)
-        
-        if not results:
-            return f"No results found for query: {query}"
-        
-        # Format results as text
-        formatted_results = []
-        for i, result in enumerate(results, 1):
-            formatted_results.append(f"{i}. **{result.title}**\n   {result.snippet}\n   {result.link}\n")
-        
-        response_text = f"Web Search Results for '{query}':\n\n" + "\n".join(formatted_results)
-        return response_text
-        
-    except Exception as e:
-        logger.error(f"Error in web_search tool: {e}")
-        return f"Error: {str(e)}"
+        try:
+            logger.info(f"Attempt {attempt}: Using {engine_name} search engine")
+            
+            # Perform the search
+            results = await provider.search(query, count)
+            
+            if results:
+                logger.info(f"Successfully found {len(results)} results using {engine_name}")
+                
+                # Format results as text
+                formatted_results = []
+                for i, result in enumerate(results, 1):
+                    formatted_results.append(f"{i}. **{result.title}**\n   {result.snippet}\n   {result.link}\n")
+                
+                response_text = f"Web Search Results for '{query}' (via {engine_name}):\n\n" + "\n".join(formatted_results)
+                return response_text
+            else:
+                logger.warning(f"No results returned from {engine_name}, trying next engine...")
+                
+        except Exception as e:
+            logger.error(f"Error with {engine_name} search engine: {e}")
+            if attempt < len(providers_to_try):
+                logger.info(f"Trying next available search engine...")
+            else:
+                logger.error(f"All search engines failed. Last error: {e}")
+    
+    # If we get here, all engines failed or returned no results
+    return f"No results found for query: {query}. All available search engines were tried."
 
 
 def signal_handler(signum, frame):
