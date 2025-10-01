@@ -11,6 +11,8 @@ Usage:
 Environment Variables:
     GOOGLE_API_KEY: Your Google Custom Search API key
     GOOGLE_SEARCH_ENGINE_ID: Your Google Custom Search Engine ID
+    OLLAMA_API_KEY: Your Ollama API key (optional, for hosted Ollama service)
+    SEARCH_PROVIDER: Search provider to use ("google" or "ollama", defaults to "google")
 """
 
 import asyncio
@@ -25,6 +27,7 @@ from urllib.parse import urlencode
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from ollama import Client
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -129,6 +132,55 @@ class GoogleSearchProvider(SearchEngineProvider):
             raise Exception(f"Search failed: {e}")
 
 
+class OllamaSearchProvider(SearchEngineProvider):
+    """Ollama web search API implementation."""
+    
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key
+        self.client = Client()
+        if api_key:
+            self.client.headers = {"Authorization": f"Bearer {api_key}"}
+    
+    async def search(
+        self, 
+        query: str, 
+        count: int = 10
+    ) -> List[SearchResult]:
+        """
+        Search using Ollama's web search API.
+        
+        Args:
+            query: The search query
+            count: Number of results to return
+            
+        Returns:
+            List of SearchResult objects
+        """
+        try:
+            # Use asyncio.to_thread to run the synchronous ollama client in a thread
+            result = await asyncio.to_thread(
+                self.client.web_search, 
+                query=query, 
+                max_results=count
+            )
+            
+            # Convert ollama response to our SearchResult format
+            results = []
+            if hasattr(result, 'results') and result.results:
+                for item in result.results:
+                    link = getattr(item, 'url', '')
+                    title = getattr(item, 'title', '')
+                    snippet = getattr(item, 'content', '')
+                    
+                    results.append(SearchResult(link, title, snippet))
+            
+            return results[:count]
+                
+        except Exception as e:
+            logger.error(f"Error during Ollama search: {e}")
+            raise Exception(f"Ollama search failed: {e}")
+
+
 # Global search provider instance
 _search_provider: Optional[SearchEngineProvider] = None
 
@@ -137,14 +189,22 @@ def get_search_provider() -> SearchEngineProvider:
     """Get the configured search provider."""
     global _search_provider
     if _search_provider is None:
-        # Get API credentials
-        api_key = os.getenv("GOOGLE_API_KEY")
-        search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
+        # Get the preferred search provider
+        provider_type = os.getenv("SEARCH_PROVIDER", "google").lower()
         
-        if not api_key or not search_engine_id:
-            raise Exception("Google API credentials not configured")
-        
-        _search_provider = GoogleSearchProvider(api_key, search_engine_id)
+        if provider_type == "ollama":
+            # Use Ollama search provider
+            ollama_api_key = os.getenv("OLLAMA_API_KEY")
+            _search_provider = OllamaSearchProvider(ollama_api_key)
+        else:
+            # Default to Google search provider
+            api_key = os.getenv("GOOGLE_API_KEY")
+            search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
+            
+            if not api_key or not search_engine_id:
+                raise Exception("Google API credentials not configured. Set GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables.")
+            
+            _search_provider = GoogleSearchProvider(api_key, search_engine_id)
     
     return _search_provider
 
@@ -201,18 +261,33 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    # Check environment variables
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    google_search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
-    
-    if not google_api_key or not google_search_engine_id:
-        logger.error("Please set GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables")
-        sys.exit(1)
+    # Get the preferred search provider
+    provider_type = os.getenv("SEARCH_PROVIDER", "google").lower()
     
     logger.info("Starting Web Search MCP HTTP Server...")
-    logger.info(f"Search Provider: Google Custom Search")
-    logger.info(f"Google API Key: {'*' * 8}{google_api_key[-4:] if google_api_key else 'Not set'}")
-    logger.info(f"Search Engine ID: {google_search_engine_id[:8]}...{google_search_engine_id[-4:] if google_search_engine_id else 'Not set'}")
+    
+    if provider_type == "ollama":
+        # Check Ollama configuration
+        ollama_api_key = os.getenv("OLLAMA_API_KEY")
+        logger.info(f"Search Provider: Ollama")
+        if ollama_api_key:
+            logger.info(f"Ollama API Key: {'*' * 8}{ollama_api_key[-4:]}")
+        else:
+            logger.info("Ollama API Key: Not set (using local Ollama instance)")
+    else:
+        # Check Google configuration
+        google_api_key = os.getenv("GOOGLE_API_KEY")
+        google_search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
+        
+        if not google_api_key or not google_search_engine_id:
+            logger.error("Please set GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables")
+            logger.error("Or set SEARCH_PROVIDER=ollama to use Ollama search")
+            sys.exit(1)
+        
+        logger.info(f"Search Provider: Google Custom Search")
+        logger.info(f"Google API Key: {'*' * 8}{google_api_key[-4:] if google_api_key else 'Not set'}")
+        logger.info(f"Search Engine ID: {google_search_engine_id[:8]}...{google_search_engine_id[-4:] if google_search_engine_id else 'Not set'}")
+    
     logger.info("Server will run on default port (FastMCP handles this automatically)")
     logger.info("Press Ctrl+C to stop the server")
     
