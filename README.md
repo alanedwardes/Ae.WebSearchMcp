@@ -13,6 +13,7 @@ A Model Context Protocol (MCP) HTTP server that provides web search functionalit
 - **HTTP Server**: Runs as an HTTP server using FastMCP
 - **Docker Support**: Containerized deployment with Docker and Docker Compose
 - **Configurable Results**: Adjustable number of search results (up to 10 per query)
+- **Snippet Length Control**: Configurable maximum snippet length to control response size
 
 ## Prerequisites
 
@@ -101,6 +102,7 @@ export OLLAMA_API_KEY="your_ollama_api_key_here"  # Optional for hosted service
 $env:GOOGLE_API_KEY="your_google_api_key_here"
 $env:GOOGLE_SEARCH_ENGINE_ID="your_search_engine_id_here"
 $env:OLLAMA_API_KEY="your_ollama_api_key_here"  # Optional for hosted service
+$env:MAX_SNIPPET_LENGTH="512"  # Optional: max snippet length (default: 512)
 # Add other search engine environment variables as needed
 ```
 
@@ -109,6 +111,7 @@ $env:OLLAMA_API_KEY="your_ollama_api_key_here"  # Optional for hosted service
 export GOOGLE_API_KEY="your_google_api_key_here"
 export GOOGLE_SEARCH_ENGINE_ID="your_search_engine_id_here"
 export OLLAMA_API_KEY="your_ollama_api_key_here"  # Optional for hosted service
+export MAX_SNIPPET_LENGTH="512"  # Optional: max snippet length (default: 512)
 # Add other search engine environment variables as needed
 ```
 
@@ -166,6 +169,7 @@ PORT=8000  # Optional: custom host port (default: 8000)
 GOOGLE_API_KEY=your_google_api_key_here
 GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
 OLLAMA_API_KEY=your_ollama_api_key_here  # Optional for hosted service
+MAX_SNIPPET_LENGTH=512  # Optional: max snippet length (default: 512)
 # Add other search engine environment variables as needed
 ```
 
@@ -225,6 +229,7 @@ Web Search Results for 'your query':
 | `GOOGLE_API_KEY` | Your Google Custom Search API key | Yes (if using Google) | - |
 | `GOOGLE_SEARCH_ENGINE_ID` | Your Google Custom Search Engine ID | Yes (if using Google) | - |
 | `OLLAMA_API_KEY` | Your Ollama API key (for hosted service) | No (if using Ollama) | - |
+| `MAX_SNIPPET_LENGTH` | Maximum length for search result snippets | No | 512 |
 | `PORT` | Host port for Docker container mapping | No | 8000 |
 
 **Note**: At least one search engine must be configured. The server automatically detects all configured engines and randomly selects one for each search request, providing load balancing and redundancy. If the selected engine fails or returns no results, another engine will be tried automatically. Additional search engines may be added in future releases with their own environment variables.
@@ -258,6 +263,7 @@ This maps host port 9090 to container port 8000.
 PORT=9090
 GOOGLE_API_KEY=your_google_api_key_here
 GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
+MAX_SNIPPET_LENGTH=256  # Shorter snippets for faster responses
 ```
 
 ## Development
