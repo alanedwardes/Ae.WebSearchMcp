@@ -3,7 +3,7 @@ services:
     build: .
     container_name: websearchmcp
     ports:
-      - "8085:8000"
+      - "${PORT:-8000}:8000"
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - GOOGLE_SEARCH_ENGINE_ID=${GOOGLE_SEARCH_ENGINE_ID}
