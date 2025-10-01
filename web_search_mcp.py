@@ -21,7 +21,6 @@ detect all available engines and randomly select one for each search request.
 """
 
 import asyncio
-import json
 import logging
 import os
 import random
@@ -29,8 +28,6 @@ import signal
 import sys
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlencode
-
 import httpx
 from mcp.server.fastmcp import FastMCP
 from ollama import Client
@@ -247,6 +244,14 @@ async def web_search(
     """
     logger.info(f"Searching web for: {query}")
     
+    # Get max snippet length from environment variable
+    max_snippet_length = None
+    try:
+        max_snippet_length = int(os.getenv("MAX_SNIPPET_LENGTH", "512"))
+    except ValueError:
+        logger.warning("Invalid MAX_SNIPPET_LENGTH value, using default of 512")
+        max_snippet_length = 512
+    
     # Get all available search providers
     available_providers = get_available_search_providers()
     
@@ -266,6 +271,11 @@ async def web_search(
             
             if results:
                 logger.info(f"Successfully found {len(results)} results using {engine_name}")
+                
+                # Apply snippet length limit to all results
+                for result in results:
+                    if result.snippet and max_snippet_length and len(result.snippet) > max_snippet_length:
+                        result.snippet = result.snippet[:max_snippet_length - 3] + "..."
                 
                 # Format results as text
                 formatted_results = []
