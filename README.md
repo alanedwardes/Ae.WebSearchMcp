@@ -20,17 +20,47 @@ A Model Context Protocol (MCP) HTTP server that provides web search functionalit
 
 ### 1. Get Google API Credentials
 
+#### Step 1: Create a Google Programmable Search Engine
+
+1. Go to the [Google Programmable Search Engine Control Panel](https://programmablesearchengine.google.com/controlpanel/all)
+2. Sign in with your Google account
+3. Click "Add" to create a new search engine
+4. In the "Sites to search" field, specify the websites you want to include:
+   - For general web search: enter `*` (searches the entire web)
+   - For specific sites: enter the domain(s) you want to search
+5. Provide a name for your search engine
+6. Click "Create" to finalize the setup
+7. After creation, go to the "Setup" section and note down the "Search engine ID" (also called "cx" parameter)
+
+#### Step 2: Enable the Custom Search JSON API
+
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
-3. Enable the Custom Search API
-4. Create credentials (API Key)
-5. Create a Custom Search Engine at [Google Custom Search](https://cse.google.com/)
-6. Note down your API key and Search Engine ID
+3. Navigate to "APIs & Services" > "Library"
+4. Search for "Custom Search API" and click on it
+5. Click "Enable" to activate the API for your project
+
+#### Step 3: Create API Credentials
+
+1. Go to "APIs & Services" > "Credentials"
+2. Click "Create Credentials" and select "API Key"
+3. Copy the generated API key for use in your application
+4. (Recommended) Restrict the API key to the Custom Search API for security:
+   - Click on the API key to edit it
+   - Under "API restrictions", select "Restrict key"
+   - Choose "Custom Search API" from the list
 
 ### 2. Environment Variables
 
 Set the following environment variables:
 
+**For Windows (PowerShell):**
+```powershell
+$env:GOOGLE_API_KEY="your_google_api_key_here"
+$env:GOOGLE_SEARCH_ENGINE_ID="your_search_engine_id_here"
+```
+
+**For Linux/macOS:**
 ```bash
 export GOOGLE_API_KEY="your_google_api_key_here"
 export GOOGLE_SEARCH_ENGINE_ID="your_search_engine_id_here"
@@ -42,7 +72,7 @@ export GOOGLE_SEARCH_ENGINE_ID="your_search_engine_id_here"
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/alanedwardes/Ae.WebSearchMcp.git
 cd Ae.WebSearchMcp
 ```
 
@@ -51,7 +81,7 @@ cd Ae.WebSearchMcp
 pip install -r requirements.txt
 ```
 
-3. Set environment variables (see above)
+3. Set environment variables (see above section)
 
 4. Run the server:
 ```bash
@@ -62,12 +92,13 @@ python web_search_mcp.py
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/alanedwardes/Ae.WebSearchMcp.git
 cd Ae.WebSearchMcp
 ```
 
-2. Create a `.env` file with your credentials:
+2. Create a `.env` file in the project root with your credentials:
 ```bash
+# .env file
 GOOGLE_API_KEY=your_google_api_key_here
 GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
 ```
