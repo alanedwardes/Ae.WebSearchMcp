@@ -7,4 +7,5 @@ services:
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - GOOGLE_SEARCH_ENGINE_ID=${GOOGLE_SEARCH_ENGINE_ID}
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY}
     restart: unless-stopped
