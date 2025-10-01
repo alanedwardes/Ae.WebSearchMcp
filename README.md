@@ -1,11 +1,13 @@
 # Web Search MCP Server
 
-A Model Context Protocol (MCP) HTTP server that provides web search functionality using either Google Custom Search API or Ollama's web search API. This server can be integrated with OpenWebUI or other MCP-compatible clients to enable web search capabilities.
+A Model Context Protocol (MCP) HTTP server that provides web search functionality using multiple search engines. The server automatically detects all configured search engines and randomly selects one for each search request, providing load balancing and redundancy. This server can be integrated with OpenWebUI or other MCP-compatible clients to enable web search capabilities.
 
 ## Features
 
-- **Multiple Search Providers**: Support for both Google Custom Search API and Ollama web search
-- **Web Search Tool**: Search the web using your preferred search provider
+- **Multiple Search Providers**: Support for various search engines including Google Custom Search API and Ollama web search
+- **Automatic Engine Detection**: Automatically detects all configured search engines at startup
+- **Random Load Balancing**: Randomly selects from available engines for each search request
+- **Web Search Tool**: Search the web using any of the configured search providers
 - **MCP Protocol**: Compatible with Model Context Protocol for AI assistant integration
 - **HTTP Server**: Runs as an HTTP server using FastMCP
 - **Docker Support**: Containerized deployment with Docker and Docker Compose
@@ -16,17 +18,20 @@ A Model Context Protocol (MCP) HTTP server that provides web search functionalit
 - Python 3.13+ (or Docker)
 - **For Google Search**: Google Custom Search API key and Search Engine ID
 - **For Ollama Search**: Ollama API key (optional, for hosted service) or local Ollama instance
+- **For other search engines**: See their respective documentation for required credentials
 
 ## Setup
 
-### 1. Choose Your Search Provider
+### 1. Configure Search Engines
 
-You can use either Google Custom Search API or Ollama's web search API. Set the `SEARCH_PROVIDER` environment variable to choose:
+The server automatically detects all configured search engines and randomly selects one for each search request. Currently supported engines include:
 
-- `SEARCH_PROVIDER=google` (default) - Uses Google Custom Search API
-- `SEARCH_PROVIDER=ollama` - Uses Ollama's web search API
+- **Google Custom Search API**: Requires `GOOGLE_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID`
+- **Ollama Web Search API**: Requires `OLLAMA_API_KEY` (optional for local instances)
 
-### 2. Get Google API Credentials (if using Google provider)
+**Note**: At least one search engine must be configured. If multiple engines are configured, the server will randomly select one for each search request, providing load balancing and redundancy. Additional search engines may be added in future releases.
+
+### 2. Get Google API Credentials (if using Google search)
 
 #### Step 1: Create a Google Programmable Search Engine
 
@@ -58,7 +63,7 @@ You can use either Google Custom Search API or Ollama's web search API. Set the 
    - Under "API restrictions", select "Restrict key"
    - Choose "Custom Search API" from the list
 
-### 3. Get Ollama API Key (if using Ollama provider)
+### 3. Get Ollama API Key (if using Ollama search)
 
 1. Sign up for an Ollama account at [ollama.com](https://ollama.com)
 2. Go to your account settings and generate an API key
@@ -66,32 +71,44 @@ You can use either Google Custom Search API or Ollama's web search API. Set the 
 
 ### 4. Environment Variables
 
-Set the following environment variables based on your chosen provider:
+Set the environment variables for the search engines you want to use. The server will automatically detect all configured engines and randomly select one for each search request. Each search engine has its own specific environment variables.
 
 **For Google Search (Windows PowerShell):**
 ```powershell
-$env:SEARCH_PROVIDER="google"
 $env:GOOGLE_API_KEY="your_google_api_key_here"
 $env:GOOGLE_SEARCH_ENGINE_ID="your_search_engine_id_here"
 ```
 
 **For Google Search (Linux/macOS):**
 ```bash
-export SEARCH_PROVIDER="google"
 export GOOGLE_API_KEY="your_google_api_key_here"
 export GOOGLE_SEARCH_ENGINE_ID="your_search_engine_id_here"
 ```
 
 **For Ollama Search (Windows PowerShell):**
 ```powershell
-$env:SEARCH_PROVIDER="ollama"
 $env:OLLAMA_API_KEY="your_ollama_api_key_here"  # Optional for hosted service
 ```
 
 **For Ollama Search (Linux/macOS):**
 ```bash
-export SEARCH_PROVIDER="ollama"
 export OLLAMA_API_KEY="your_ollama_api_key_here"  # Optional for hosted service
+```
+
+**For Multiple Search Engines (Windows PowerShell):**
+```powershell
+$env:GOOGLE_API_KEY="your_google_api_key_here"
+$env:GOOGLE_SEARCH_ENGINE_ID="your_search_engine_id_here"
+$env:OLLAMA_API_KEY="your_ollama_api_key_here"  # Optional for hosted service
+# Add other search engine environment variables as needed
+```
+
+**For Multiple Search Engines (Linux/macOS):**
+```bash
+export GOOGLE_API_KEY="your_google_api_key_here"
+export GOOGLE_SEARCH_ENGINE_ID="your_search_engine_id_here"
+export OLLAMA_API_KEY="your_ollama_api_key_here"  # Optional for hosted service
+# Add other search engine environment variables as needed
 ```
 
 ## Installation
@@ -129,7 +146,6 @@ cd Ae.WebSearchMcp
 **For Google Search:**
 ```bash
 # .env file
-SEARCH_PROVIDER=google
 GOOGLE_API_KEY=your_google_api_key_here
 GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
 ```
@@ -137,8 +153,16 @@ GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
 **For Ollama Search:**
 ```bash
 # .env file
-SEARCH_PROVIDER=ollama
 OLLAMA_API_KEY=your_ollama_api_key_here  # Optional for hosted service
+```
+
+**For Multiple Search Engines:**
+```bash
+# .env file
+GOOGLE_API_KEY=your_google_api_key_here
+GOOGLE_SEARCH_ENGINE_ID=your_search_engine_id_here
+OLLAMA_API_KEY=your_ollama_api_key_here  # Optional for hosted service
+# Add other search engine environment variables as needed
 ```
 
 3. Run with Docker Compose:
@@ -156,6 +180,8 @@ The server provides a single MCP tool called `web_search` with the following par
 
 - **query** (string, required): The search query to execute
 - **count** (integer, optional): Number of results to return (default: 10, max: 10)
+
+The server will automatically select a random search engine from all configured engines for each search request.
 
 ### Example Usage
 
@@ -192,10 +218,11 @@ Web Search Results for 'your query':
 
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `SEARCH_PROVIDER` | Search provider to use ("google" or "ollama") | No | "google" |
 | `GOOGLE_API_KEY` | Your Google Custom Search API key | Yes (if using Google) | - |
 | `GOOGLE_SEARCH_ENGINE_ID` | Your Google Custom Search Engine ID | Yes (if using Google) | - |
 | `OLLAMA_API_KEY` | Your Ollama API key (for hosted service) | No (if using Ollama) | - |
+
+**Note**: At least one search engine must be configured. The server automatically detects all configured engines and randomly selects one for each search request. Additional search engines may be added in future releases with their own environment variables.
 
 ### Docker Configuration
 
@@ -225,21 +252,25 @@ Ae.WebSearchMcp/
 - **SearchResult**: Data class for search results
 - **FastMCP Server**: HTTP server using the FastMCP framework
 
+The modular design allows for easy addition of new search engine providers by implementing the `SearchEngineProvider` interface.
+
 ## Troubleshooting
 
 ### Common Issues
 
-1. **API Key Not Set**: 
-   - For Google: Ensure `GOOGLE_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID` environment variables are set
+1. **No Search Engines Configured**: 
+   - Ensure at least one search engine is configured with the required environment variables
+   - For Google: Set `GOOGLE_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID`
    - For Ollama: `OLLAMA_API_KEY` is optional for hosted service
-2. **Search Provider Not Configured**: Verify `SEARCH_PROVIDER` is set to "google" or "ollama"
-3. **API Quota Exceeded**: Check your API quota limits (Google or Ollama)
-4. **Network Issues**: Ensure the server can reach the API endpoints
-5. **Ollama Connection Issues**: If using local Ollama, ensure the service is running
+   - For other engines: Check their specific documentation for required environment variables
+2. **API Quota Exceeded**: Check your API quota limits (Google or Ollama)
+3. **Network Issues**: Ensure the server can reach the API endpoints
+4. **Ollama Connection Issues**: If using local Ollama, ensure the service is running
 
 ### Logs
 
 The server logs important information including:
-- Startup confirmation
+- Startup confirmation and detected search engines
+- Random engine selection for each search request
 - Search queries being executed
 - API errors and exceptions

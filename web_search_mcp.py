@@ -5,20 +5,26 @@ Web Search MCP HTTP Server
 An HTTP-based Model Context Protocol (MCP) server that provides web search functionality.
 This server can be used with OpenWebUI or other MCP-compatible clients.
 
+The server automatically detects all configured search engines and randomly selects one
+for each search request, providing load balancing and redundancy.
+
 Usage:
-    python google_search_mcp.py
+    python web_search_mcp.py
 
 Environment Variables:
     GOOGLE_API_KEY: Your Google Custom Search API key
     GOOGLE_SEARCH_ENGINE_ID: Your Google Custom Search Engine ID
     OLLAMA_API_KEY: Your Ollama API key (optional, for hosted Ollama service)
-    SEARCH_PROVIDER: Search provider to use ("google" or "ollama", defaults to "google")
+
+Note: At least one search engine must be configured. The server will automatically
+detect all available engines and randomly select one for each search request.
 """
 
 import asyncio
 import json
 import logging
 import os
+import random
 import signal
 import sys
 from abc import ABC, abstractmethod
@@ -181,32 +187,39 @@ class OllamaSearchProvider(SearchEngineProvider):
             raise Exception(f"Ollama search failed: {e}")
 
 
-# Global search provider instance
-_search_provider: Optional[SearchEngineProvider] = None
-
-
-def get_search_provider() -> SearchEngineProvider:
-    """Get the configured search provider."""
-    global _search_provider
-    if _search_provider is None:
-        # Get the preferred search provider
-        provider_type = os.getenv("SEARCH_PROVIDER", "google").lower()
-        
-        if provider_type == "ollama":
-            # Use Ollama search provider
-            ollama_api_key = os.getenv("OLLAMA_API_KEY")
-            _search_provider = OllamaSearchProvider(ollama_api_key)
-        else:
-            # Default to Google search provider
-            api_key = os.getenv("GOOGLE_API_KEY")
-            search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
-            
-            if not api_key or not search_engine_id:
-                raise Exception("Google API credentials not configured. Set GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables.")
-            
-            _search_provider = GoogleSearchProvider(api_key, search_engine_id)
+def detect_available_engines() -> List[SearchEngineProvider]:
+    """Detect all available search engines based on environment variables."""
+    available_engines = []
     
-    return _search_provider
+    # Check for Google Custom Search configuration
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    google_search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
+    
+    if google_api_key and google_search_engine_id:
+        available_engines.append(GoogleSearchProvider(google_api_key, google_search_engine_id))
+        logger.info("Google Custom Search engine detected and configured")
+    
+    # Check for Ollama configuration
+    ollama_api_key = os.getenv("OLLAMA_API_KEY")
+    if ollama_api_key or True:  # Ollama can work without API key (local instance)
+        available_engines.append(OllamaSearchProvider(ollama_api_key))
+        logger.info("Ollama search engine detected and configured")
+    
+    return available_engines
+
+
+def get_random_search_provider() -> SearchEngineProvider:
+    """Get a randomly selected search provider from available engines."""
+    available_engines = detect_available_engines()
+    
+    if not available_engines:
+        raise Exception("No search engines configured. Please set up at least one of: GOOGLE_API_KEY+GOOGLE_SEARCH_ENGINE_ID or OLLAMA_API_KEY")
+    
+    selected_engine = random.choice(available_engines)
+    engine_name = "Google" if isinstance(selected_engine, GoogleSearchProvider) else "Ollama"
+    logger.info(f"Selected search engine: {engine_name}")
+    
+    return selected_engine
 
 
 @mcp.tool()
@@ -215,7 +228,7 @@ async def web_search(
     count: int = 10
 ) -> str:
     """
-    Search the web using the configured search engine.
+    Search the web using a randomly selected search engine from available configured engines.
     
     Args:
         query: The search query to execute
@@ -227,8 +240,8 @@ async def web_search(
     try:
         logger.info(f"Searching web for: {query}")
         
-        # Get the search provider
-        provider = get_search_provider()
+        # Get a randomly selected search provider
+        provider = get_random_search_provider()
         
         # Perform the search
         results = await provider.search(query, count)
@@ -261,32 +274,29 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    # Get the preferred search provider
-    provider_type = os.getenv("SEARCH_PROVIDER", "google").lower()
-    
     logger.info("Starting Web Search MCP HTTP Server...")
     
-    if provider_type == "ollama":
-        # Check Ollama configuration
-        ollama_api_key = os.getenv("OLLAMA_API_KEY")
-        logger.info(f"Search Provider: Ollama")
-        if ollama_api_key:
-            logger.info(f"Ollama API Key: {'*' * 8}{ollama_api_key[-4:]}")
-        else:
-            logger.info("Ollama API Key: Not set (using local Ollama instance)")
-    else:
-        # Check Google configuration
-        google_api_key = os.getenv("GOOGLE_API_KEY")
-        google_search_engine_id = os.getenv("GOOGLE_SEARCH_ENGINE_ID")
-        
-        if not google_api_key or not google_search_engine_id:
-            logger.error("Please set GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID environment variables")
-            logger.error("Or set SEARCH_PROVIDER=ollama to use Ollama search")
+    # Detect and log available search engines
+    try:
+        available_engines = detect_available_engines()
+        if not available_engines:
+            logger.error("No search engines configured. Please set up at least one of:")
+            logger.error("  - GOOGLE_API_KEY and GOOGLE_SEARCH_ENGINE_ID for Google Custom Search")
+            logger.error("  - OLLAMA_API_KEY for Ollama search (or run local Ollama instance)")
             sys.exit(1)
         
-        logger.info(f"Search Provider: Google Custom Search")
-        logger.info(f"Google API Key: {'*' * 8}{google_api_key[-4:] if google_api_key else 'Not set'}")
-        logger.info(f"Search Engine ID: {google_search_engine_id[:8]}...{google_search_engine_id[-4:] if google_search_engine_id else 'Not set'}")
+        logger.info(f"Detected {len(available_engines)} available search engine(s):")
+        for engine in available_engines:
+            if isinstance(engine, GoogleSearchProvider):
+                logger.info("  - Google Custom Search")
+            elif isinstance(engine, OllamaSearchProvider):
+                logger.info("  - Ollama Search")
+        
+        logger.info("Search engine will be randomly selected for each request")
+        
+    except Exception as e:
+        logger.error(f"Error detecting search engines: {e}")
+        sys.exit(1)
     
     logger.info("Server will run on default port (FastMCP handles this automatically)")
     logger.info("Press Ctrl+C to stop the server")
